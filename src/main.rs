@@ -4,10 +4,7 @@ use bevy::{
         wireframe::{Wireframe, WireframeConfig, WireframePlugin},
         MaterialPipeline, MaterialPipelineKey,
     },
-    prelude::{
-        shape::{Cube, Torus, UVSphere},
-        *,
-    },
+    prelude::*,
     reflect::{TypePath, TypeUuid},
     render::{
         mesh::Indices,
@@ -190,15 +187,11 @@ fn input_handler(
             for mut camera in &mut query {
                 let delta = mouse_pos.single_mut().calculate_delta(position);
 
-                let yaw = delta.x;
-                let pitch = delta.y;
-
-                if yaw.abs() > 0.1 || pitch.abs() > 0.1 {
-                    let mut rotation = yaw * Vec3::X + pitch * Vec3::Y;
+                if delta.x.abs() > 0.1 || delta.y.abs() > 0.1 {
+                    let mut rotation = delta.x * Vec3::X + delta.y * Vec3::Y;
                     rotation = Vec3::normalize(rotation);
                     rotation *= time.delta_seconds();
-                    // println!("delta: {:?}", delta);
-                    // println!("Rotation: {:?}", rotation);
+
                     camera.rotate_around(
                         Vec3::ZERO,
                         Quat::from_euler(EulerRot::YXZ, rotation.x, rotation.y, 0.0),
