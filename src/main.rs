@@ -111,7 +111,11 @@ fn generate_quad() -> Mesh {
 }
 fn main() {
     App::new()
-        .add_plugins((DefaultPlugins, WireframePlugin, MaterialPlugin::<CustomMaterial>::default()))
+        .add_plugins((
+            DefaultPlugins,
+            WireframePlugin,
+            MaterialPlugin::<CustomMaterial>::default(),
+        ))
         .add_systems(Startup, setup)
         .add_systems(Update, input_handler)
         .run();
@@ -129,31 +133,7 @@ fn setup(
 
     let texture = asset_server.load("base-map.png");
     let mesh = meshes.add(generate_quad());
-    let s1 = meshes.add(Cube::default().into());
-
-    commands.spawn(PbrBundle {
-        mesh: s1,
-        transform: Transform::from_translation(Vec3::ZERO).with_scale(Vec3::splat(0.1)),
-
-        ..default()
-    });
-
-    let s2 = meshes.add(UVSphere::default().into());
-
-    commands.spawn(PbrBundle {
-        mesh: s2,
-        transform: Transform::from_translation(Vec3::X).with_scale(Vec3::splat(0.1)),
-        ..default()
-    });
-
-    let s3 = meshes.add(Torus::default().into());
-
-    commands.spawn(PbrBundle {
-        mesh: s3,
-        transform: Transform::from_translation(Vec3::Y).with_scale(Vec3::splat(0.1)),
-        ..default()
-    });
-
+   
     commands.spawn((
         MaterialMeshBundle {
             mesh,
@@ -161,7 +141,6 @@ fn setup(
                 color: Color::WHITE,
                 color_texture: Some(texture),
                 alpha_mode: AlphaMode::Blend,
-                
             }),
 
             ..default()
@@ -191,23 +170,6 @@ fn setup(
         transform: camera_and_light_transform,
         ..default()
     });
-
-    // Text to describe the controls.
-    commands.spawn(
-        TextBundle::from_section(
-            "Controls:\nSpace: Change UVs\nX/Y/Z: Rotate\nR: Reset orientation",
-            TextStyle {
-                font_size: 20.0,
-                ..default()
-            },
-        )
-        .with_style(Style {
-            position_type: PositionType::Absolute,
-            top: Val::Px(12.0),
-            left: Val::Px(12.0),
-            ..default()
-        }),
-    );
 }
 
 fn input_handler(
