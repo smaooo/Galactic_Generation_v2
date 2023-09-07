@@ -25,7 +25,6 @@ struct CustomUV;
 #[derive(Component)]
 struct MousePos {
     prev_pos: Vec2,
-    current_pos: Vec2,
 }
 
 #[derive(AsBindGroup, Clone, TypeUuid, TypePath)]
@@ -64,7 +63,6 @@ impl Default for MousePos {
     fn default() -> Self {
         Self {
             prev_pos: Vec2::ZERO,
-            current_pos: Vec2::ZERO,
         }
     }
 }
@@ -122,7 +120,7 @@ fn main() {
 fn setup(
     mut commands: Commands,
     asset_server: ResMut<AssetServer>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    // mut materials: ResMut<Assets<StandardMaterial>>,
     mut custom_materials: ResMut<Assets<CustomMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut wireframe_config: ResMut<WireframeConfig>,
@@ -247,8 +245,4 @@ fn input_handler(
             }
         }
     }
-}
-
-fn generate_sphere_cube() -> Mesh {
-    Mesh::new(PrimitiveTopology::TriangleList)
 }
