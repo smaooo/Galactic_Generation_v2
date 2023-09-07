@@ -1,14 +1,22 @@
 use bevy::{
-    core::FrameCount,
-    input::mouse::MouseMotion,
     math::*,
-    prelude::{shape::Cube, *},
-    render::{
-        mesh::{Indices, VertexAttributeValues},
-        render_graph::Node,
-        render_resource::PrimitiveTopology,
+    pbr::{
+        wireframe::{Wireframe, WireframeConfig, WireframePlugin},
+        MaterialPipeline, MaterialPipelineKey,
     },
-    window::CursorGrabMode,
+    prelude::{
+        shape::{Cube, Torus, UVSphere},
+        *,
+    },
+    reflect::{TypePath, TypeUuid},
+    render::{
+        mesh::Indices,
+        mesh::MeshVertexBufferLayout,
+        render_resource::PrimitiveTopology,
+        render_resource::{
+            AsBindGroup, RenderPipelineDescriptor, ShaderRef, SpecializedMeshPipelineError,
+        },
+    },
 };
 
 #[derive(Component)]
@@ -20,6 +28,38 @@ struct MousePos {
     current_pos: Vec2,
 }
 
+#[derive(AsBindGroup, Clone, TypeUuid, TypePath)]
+#[uuid = "4ee9c363-1124-4113-890e-199d81b00281"]
+struct CustomMaterial {
+    #[uniform(0)]
+    color: Color,
+    #[texture(1)]
+    #[sampler(2)]
+    color_texture: Option<Handle<Image>>,
+    alpha_mode: AlphaMode,
+}
+
+impl Material for CustomMaterial {
+    fn vertex_shader() -> ShaderRef {
+        "shaders/flip_tex.vert".into()
+    }
+    fn fragment_shader() -> ShaderRef {
+        "shaders/flip_tex.frag".into()
+    }
+    fn alpha_mode(&self) -> AlphaMode {
+        self.alpha_mode
+    }
+    fn specialize(
+        _pipeline: &MaterialPipeline<Self>,
+        descriptor: &mut RenderPipelineDescriptor,
+        _layout: &MeshVertexBufferLayout,
+        _key: MaterialPipelineKey<Self>,
+    ) -> Result<(), SpecializedMeshPipelineError> {
+        descriptor.vertex.entry_point = "main".into();
+        descriptor.fragment.as_mut().unwrap().entry_point = "main".into();
+        Ok(())
+    }
+}
 impl Default for MousePos {
     fn default() -> Self {
         Self {
@@ -44,16 +84,18 @@ fn generate_quad() -> Mesh {
             Vec3::ZERO.to_array(),
             Vec3::X.to_array(),
             Vec3::Y.to_array(),
+            (Vec3::X + Vec3::Y).to_array(),
         ],
     );
-    mesh.set_indices(Some(Indices::U32(vec![0, 1, 2])));
+    mesh.set_indices(Some(Indices::U32(vec![0, 1, 2, 1, 3, 2])));
 
     mesh.insert_attribute(
         Mesh::ATTRIBUTE_NORMAL,
         vec![
-            (-Vec3::Z).to_array(),
-            (-Vec3::Z).to_array(),
-            (-Vec3::Z).to_array(),
+            (Vec3::Z).to_array(),
+            (Vec3::Z).to_array(),
+            (Vec3::Z).to_array(),
+            (Vec3::Z).to_array(),
         ],
     );
 
@@ -63,6 +105,7 @@ fn generate_quad() -> Mesh {
             Vec2::ZERO.to_array(),
             Vec2::X.to_array(),
             Vec2::Y.to_array(),
+            Vec2::ONE.to_array(),
         ],
     );
 
@@ -70,7 +113,7 @@ fn generate_quad() -> Mesh {
 }
 fn main() {
     App::new()
-        .add_plugins(DefaultPlugins)
+        .add_plugins((DefaultPlugins, WireframePlugin, MaterialPlugin::<CustomMaterial>::default()))
         .add_systems(Startup, setup)
         .add_systems(Update, input_handler)
         .run();
@@ -80,19 +123,53 @@ fn setup(
     mut commands: Commands,
     asset_server: ResMut<AssetServer>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    mut custom_materials: ResMut<Assets<CustomMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
+    mut wireframe_config: ResMut<WireframeConfig>,
 ) {
-    //let texture = asset_server.load("../base-map.png");
-    let mesh = meshes.add(generate_quad());
+    wireframe_config.global = false;
 
-    commands.spawn((PbrBundle {
-        mesh,
-        // material: materials.add(StandardMaterial {
-        //     base_color_texture: Some(texture),
-        //     ..default()
-        // })
+    let texture = asset_server.load("base-map.png");
+    let mesh = meshes.add(generate_quad());
+    let s1 = meshes.add(Cube::default().into());
+
+    commands.spawn(PbrBundle {
+        mesh: s1,
+        transform: Transform::from_translation(Vec3::ZERO).with_scale(Vec3::splat(0.1)),
+
         ..default()
-    },));
+    });
+
+    let s2 = meshes.add(UVSphere::default().into());
+
+    commands.spawn(PbrBundle {
+        mesh: s2,
+        transform: Transform::from_translation(Vec3::X).with_scale(Vec3::splat(0.1)),
+        ..default()
+    });
+
+    let s3 = meshes.add(Torus::default().into());
+
+    commands.spawn(PbrBundle {
+        mesh: s3,
+        transform: Transform::from_translation(Vec3::Y).with_scale(Vec3::splat(0.1)),
+        ..default()
+    });
+
+    commands.spawn((
+        MaterialMeshBundle {
+            mesh,
+            material: custom_materials.add(CustomMaterial {
+                color: Color::WHITE,
+                color_texture: Some(texture),
+                alpha_mode: AlphaMode::Blend,
+                
+            }),
+
+            ..default()
+        },
+        Wireframe,
+    ));
 
     let camera_and_light_transform =
         Transform::from_xyz(0.0, 2.0, 2.0).looking_at(Vec3::ZERO, Vec3::Y);
@@ -151,21 +228,21 @@ fn input_handler(
     if mouse_input.pressed(MouseButton::Left) {
         if let Some(position) = window.cursor_position() {
             for mut camera in &mut query {
-                let delta = mouse_pos.single_mut().calculate_delta(position);              
+                let delta = mouse_pos.single_mut().calculate_delta(position);
 
                 let yaw = delta.x;
                 let pitch = delta.y;
 
                 if yaw.abs() > 0.1 || pitch.abs() > 0.1 {
-                    
                     let mut rotation = yaw * Vec3::X + pitch * Vec3::Y;
                     rotation = Vec3::normalize(rotation);
                     rotation *= time.delta_seconds();
-                    println!("delta: {:?}", delta);
-                    println!("Rotation: {:?}", rotation);
-                    camera.rotate_around(Vec3::ZERO, Quat::from_euler(EulerRot::YXZ, rotation.x, rotation.y, 0.0));
-
-
+                    // println!("delta: {:?}", delta);
+                    // println!("Rotation: {:?}", rotation);
+                    camera.rotate_around(
+                        Vec3::ZERO,
+                        Quat::from_euler(EulerRot::YXZ, rotation.x, rotation.y, 0.0),
+                    );
                 }
             }
         }
