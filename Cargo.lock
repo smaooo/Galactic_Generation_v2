@@ -3,13 +3,6 @@
 version = 3
 
 [[package]]
-name = "Galactic_Generation_v2"
-version = "0.1.0"
-dependencies = [
- "bevy",
-]
-
-[[package]]
 name = "ab_glyph"
 version = "0.2.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1582,6 +1575,13 @@ dependencies = [
  "parking",
  "pin-project-lite",
  "waker-fn",
+]
+
+[[package]]
+name = "galactic_generation_v2"
+version = "0.1.0"
+dependencies = [
+ "bevy",
 ]
 
 [[package]]
