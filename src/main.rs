@@ -7,6 +7,7 @@ use bevy::{
     prelude::*,
     reflect::{TypePath, TypeUuid},
     render::{
+        color,
         mesh::Indices,
         mesh::MeshVertexBufferLayout,
         render_resource::PrimitiveTopology,
@@ -15,6 +16,7 @@ use bevy::{
         },
     },
 };
+use galactic_generation_v2::procedural_meshes::*;
 
 #[derive(Component)]
 struct CustomUV;
@@ -32,6 +34,9 @@ struct CustomMaterial {
     #[texture(1)]
     #[sampler(2)]
     color_texture: Option<Handle<Image>>,
+    #[texture(3)]
+    #[sampler(4)]
+    normal_map_texture: Option<Handle<Image>>,
     alpha_mode: AlphaMode,
 }
 
@@ -71,41 +76,6 @@ impl MousePos {
     }
 }
 
-fn generate_quad() -> Mesh {
-    let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
-    mesh.insert_attribute(
-        Mesh::ATTRIBUTE_POSITION,
-        vec![
-            Vec3::ZERO.to_array(),
-            Vec3::X.to_array(),
-            Vec3::Y.to_array(),
-            (Vec3::X + Vec3::Y).to_array(),
-        ],
-    );
-    mesh.set_indices(Some(Indices::U32(vec![0, 1, 2, 1, 3, 2])));
-
-    mesh.insert_attribute(
-        Mesh::ATTRIBUTE_NORMAL,
-        vec![
-            (Vec3::Z).to_array(),
-            (Vec3::Z).to_array(),
-            (Vec3::Z).to_array(),
-            (Vec3::Z).to_array(),
-        ],
-    );
-
-    mesh.insert_attribute(
-        Mesh::ATTRIBUTE_UV_0,
-        vec![
-            Vec2::ZERO.to_array(),
-            Vec2::X.to_array(),
-            Vec2::Y.to_array(),
-            Vec2::ONE.to_array(),
-        ],
-    );
-
-    mesh
-}
 fn main() {
     App::new()
         .add_plugins((
@@ -121,23 +91,25 @@ fn main() {
 fn setup(
     mut commands: Commands,
     asset_server: ResMut<AssetServer>,
-    // mut materials: ResMut<Assets<StandardMaterial>>,
-    mut custom_materials: ResMut<Assets<CustomMaterial>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    // mut custom_materials: ResMut<Assets<CustomMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut wireframe_config: ResMut<WireframeConfig>,
 ) {
     wireframe_config.global = false;
 
-    let texture = asset_server.load("base-map.png");
-    let mesh = meshes.add(generate_quad());
-   
+    let color_texture = asset_server.load("base-map.png");
+    let normal_texture = asset_server.load("normal-map.png");
+
+    let mesh = meshes.add(generate_grid(4));
     commands.spawn((
         MaterialMeshBundle {
             mesh,
-            material: custom_materials.add(CustomMaterial {
-                color: Color::WHITE,
-                color_texture: Some(texture),
-                alpha_mode: AlphaMode::Blend,
+            material: materials.add(StandardMaterial {
+                base_color_texture: Some(color_texture.clone()),
+                normal_map_texture: Some(normal_texture.clone()),
+                double_sided: true,
+                ..default()
             }),
 
             ..default()
@@ -146,7 +118,7 @@ fn setup(
     ));
 
     let camera_and_light_transform =
-        Transform::from_xyz(0.0, 2.0, 2.0).looking_at(Vec3::ZERO, Vec3::Y);
+        Transform::from_xyz(1.0, 1.0, 4.0).looking_at(Vec3::new(1.0, 1.0, 0.0), Vec3::Y);
 
     // Camera in 3D space.
     commands.spawn((
