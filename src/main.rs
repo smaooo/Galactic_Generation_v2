@@ -56,6 +56,7 @@ fn main() {
         ))
         .add_systems(Startup, setup)
         .add_systems(Update, input_handler)
+        .add_systems(Update, touchpad_gestures)
         .add_systems(Update, draw_gizmos)
         .run();
 }
