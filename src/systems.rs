@@ -17,14 +17,13 @@ pub fn setup(
     let color_texture = asset_server.load("base-map.png");
     let normal_texture = asset_server.load("normal-map.png");
 
-    let mesh = meshes.add(generate_grid(4));
+    let mesh = meshes.add(generate_grid(10));
     commands.spawn((
         MaterialMeshBundle {
             mesh,
             material: materials.add(StandardMaterial {
                 base_color_texture: Some(color_texture.clone()),
                 normal_map_texture: Some(normal_texture.clone()),
-                double_sided: true,
                 ..default()
             }),
 
@@ -35,7 +34,7 @@ pub fn setup(
     ));
 
     let camera_and_light_transform =
-        Transform::from_xyz(1.0, 1.0, 4.0).looking_at(Vec3::new(1.0, 1.0, 0.0), Vec3::Y);
+        Transform::from_xyz(1.0, 1.0, 4.0).looking_at(Vec3::new(1.0, 1.0, 0.0), -Vec3::Y);
 
     // Camera in 3D space.
     commands.spawn((

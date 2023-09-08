@@ -22,6 +22,8 @@ impl Default for Vertex {
     }
 }
 
+// In the following functions the y and z parameters can be swapped to change the orientation of the grid.
+
 fn generate_quad_vertices(
     i: u32,
     resolution: u32,
@@ -33,7 +35,7 @@ fn generate_quad_vertices(
 
     let mut vertex = Vertex::default();
 
-    vertex.normal.y = 1.0;
+    vertex.normal.z = 1.0;
     vertex.tangent.x = -1.0;
     vertex.tangent.w = -1.0;
 
@@ -50,6 +52,58 @@ fn generate_quad_vertices(
         vertices[vi as usize] = vertex;
 
         if i > 0 {
+            triangles[ti as usize] = vi - resolution - 2;
+            triangles[ti as usize + 1] = vi - resolution - 1;
+            triangles[ti as usize + 2] = vi - 1;
+            triangles[ti as usize + 3] = vi - resolution - 1;
+            triangles[ti as usize + 4] = vi;
+            triangles[ti as usize + 5] = vi - 1;
+        }
+
+        vi += 1;
+        ti += 6;
+    }
+}
+
+fn generate_uv_sphere_vertices(
+    u: u32,
+    resolution: u32,
+    vertices: &mut std::vec::Vec<Vertex>,
+    triangles: &mut std::vec::Vec<u32>,
+) {
+    let mut vi = (resolution + 1) * u;
+    let mut ti: i32 = (6 * resolution) as i32 * (u as i32 - 1);
+
+    let mut vertex = Vertex::default();
+    vertex.position.y = -1.0;
+    vertex.normal.y = -1.0;
+
+    vertex.tangent.w = -1.0;
+
+    let mut circle = Vec2::ZERO;
+    circle.x = f32::sin(2.0 * std::f32::consts::PI * u as f32 / resolution as f32);
+    circle.y = f32::cos(2.0 * std::f32::consts::PI * u as f32 / resolution as f32);
+
+    vertex.tangent.x = circle.y;
+    vertex.tangent.z = circle.x;
+
+    circle.y = -circle.y;
+
+    vertex.tex_coord0.x = u as f32 / resolution as f32;
+
+    vertices[vi as usize] = vertex;
+
+    vi += 1;
+    for v in 1..resolution + 1 {
+        let circle_radius = f32::sin(std::f32::consts::PI * v as f32 / resolution as f32);
+        vertex.position.x = circle.x * circle_radius;
+        vertex.position.z = circle.y * circle_radius;
+        vertex.position.y = -f32::cos(std::f32::consts::PI * v as f32 / resolution as f32);
+        vertex.normal = vertex.position;
+        vertex.tex_coord0.y = v as f32 / resolution as f32;
+        vertices[vi as usize] = vertex;
+
+        if u > 0 {
             triangles[ti as usize] = vi - resolution - 2;
             triangles[ti as usize + 1] = vi - resolution - 1;
             triangles[ti as usize + 2] = vi - 1;
@@ -94,7 +148,7 @@ fn generate_tris_vertices(
 
     let mut vertex = Vertex::default();
 
-    vertex.normal.y = 1.0;
+    vertex.normal.z = 1.0;
     vertex.tangent.x = -1.0;
     vertex.tangent.w = -1.0;
 
@@ -133,7 +187,7 @@ pub fn generate_grid(resolution: u32) -> Mesh {
     let mut triangles = vec![0 as u32; index_count as usize];
 
     for i in 0..resolution + 1 {
-        generate_tris_vertices(i, resolution, &mut vertices, &mut triangles);
+        generate_uv_sphere_vertices(i, resolution, &mut vertices, &mut triangles);
     }
 
     let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
