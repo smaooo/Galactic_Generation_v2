@@ -1,3 +1,5 @@
+use std::iter::zip;
+
 use bevy::{
     math::*,
     pbr::{
@@ -7,10 +9,7 @@ use bevy::{
     prelude::*,
     reflect::{TypePath, TypeUuid},
     render::{
-        color,
-        mesh::Indices,
-        mesh::MeshVertexBufferLayout,
-        render_resource::PrimitiveTopology,
+        mesh::{MeshVertexBufferLayout, MeshVertexAttribute, MeshVertexAttributeId},
         render_resource::{
             AsBindGroup, RenderPipelineDescriptor, ShaderRef, SpecializedMeshPipelineError,
         },
@@ -85,6 +84,7 @@ fn main() {
         ))
         .add_systems(Startup, setup)
         .add_systems(Update, input_handler)
+        .add_systems(Update, draw_gizmos)
         .run();
 }
 
@@ -115,6 +115,7 @@ fn setup(
             ..default()
         },
         Wireframe,
+        CustomUV,
     ));
 
     let camera_and_light_transform =
@@ -171,5 +172,44 @@ fn input_handler(
                 }
             }
         }
+    }
+}
+
+fn draw_gizmos(
+    mut gizmos: Gizmos,
+    meshes: Res<Assets<Mesh>>,
+    mesh_query: Query<&Handle<Mesh>, With<CustomUV>>
+) {
+    let mesh_handle = mesh_query.single();
+    let mesh = meshes.get(mesh_handle).unwrap();
+
+    let vertices = mesh.attribute(Mesh::ATTRIBUTE_POSITION);
+    let normals = mesh.attribute(Mesh::ATTRIBUTE_NORMAL);
+    let tangents = mesh.attribute(Mesh::ATTRIBUTE_TANGENT);
+    if let (Some(v), Some(n), Some(t)) = (vertices, normals, tangents) {
+        println!("v: {:?}", t);
+        let a = t.get_bytes().to_vec();
+        let mut raw_vals = vec![];
+        for i in (0..a.len()).step_by(4) {
+            let tmp = [a[i], a[i+1], a[i+2], a[i+3]];
+            raw_vals.push(f32::from_le_bytes(tmp));
+        }
+
+        let mut t_3 = vec![];
+        for i in (0..raw_vals.len()).step_by(4) {
+            let tmp = [raw_vals[i], raw_vals[i+1], raw_vals[i+2]];
+            t_3.push(tmp);
+        }
+
+        v.as_float3().zip(n.as_float3().zip(Some(t_3))).map(|(v, (n, t))| {
+            for i in 0..v.len() {
+                let v = Vec3::from_array(v[i]);
+                let n = Vec3::from_array(n[i]);
+                let t = Vec3::from_array(t[i]);
+                gizmos.sphere(v, Quat::IDENTITY, 0.01, Color::RED);
+                gizmos.ray(v, n * 0.1, Color::BLUE);
+                gizmos.ray(v, t * 0.1, Color::GREEN);
+            }
+        });
     }
 }
