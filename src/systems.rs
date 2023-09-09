@@ -3,8 +3,6 @@ use crate::procedural_meshes::*;
 use bevy::input::keyboard;
 use bevy::input::touchpad::TouchpadMagnify;
 use bevy::pbr::wireframe::Wireframe;
-use bevy::render::camera;
-use bevy::window::CursorGrabMode;
 use bevy::{pbr::wireframe::WireframeConfig, prelude::*};
 
 pub fn setup(
@@ -75,7 +73,7 @@ pub fn input_handler(
     time: Res<Time>,
 ) {
     let mut window = windows.single_mut();
-    
+
     if mouse_input.just_released(MouseButton::Left) {
         window.cursor.visible = false;
         if let Some(position) = window.cursor_position() {
@@ -89,7 +87,7 @@ pub fn input_handler(
     if !window.cursor.visible {
         if let Some(position) = window.cursor_position() {
             let mut delta = mouse_pos.single_mut().calculate_delta(position);
-            
+
             for mut camera in &mut query {
                 delta *= time.delta_seconds();
 
@@ -112,7 +110,8 @@ pub fn input_handler(
         let up = camera.up() * keyboard_input.pressed(KeyCode::E) as i8 as f32;
         let down = camera.down() * keyboard_input.pressed(KeyCode::Q) as i8 as f32;
 
-        camera.translation += (left + right + up + down + forward + back) * time.delta_seconds() * move_speed;
+        camera.translation +=
+            (left + right + up + down + forward + back) * time.delta_seconds() * move_speed;
 
         if keyboard_input.just_released(KeyCode::R) {
             camera.translation = Vec3::new(0.5, 0.5, 4.0);
