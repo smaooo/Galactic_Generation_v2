@@ -3,6 +3,8 @@ use crate::procedural_meshes::*;
 use bevy::input::keyboard;
 use bevy::input::touchpad::TouchpadMagnify;
 use bevy::pbr::wireframe::Wireframe;
+use bevy::render::camera;
+use bevy::window::CursorGrabMode;
 use bevy::{pbr::wireframe::WireframeConfig, prelude::*};
 
 pub fn setup(
@@ -17,11 +19,17 @@ pub fn setup(
 
     let color_texture = asset_server.load("base-map.png");
     let normal_texture = asset_server.load("normal-map.png");
+    let raw_mesh = generate_grid(10);
+    let mesh = meshes.add(raw_mesh);
 
-    let mesh = meshes.add(generate_grid(10));
     commands.spawn((
         MaterialMeshBundle {
             mesh,
+            transform: Transform {
+                translation: Vec3::new(0.0, 0.0, 0.0),
+                rotation: Quat::IDENTITY,
+                scale: Vec3::new(1.0, 1.0, 1.0),
+            },
             material: materials.add(StandardMaterial {
                 base_color_texture: Some(color_texture.clone()),
                 normal_map_texture: Some(normal_texture.clone()),
@@ -35,7 +43,7 @@ pub fn setup(
     ));
 
     let camera_and_light_transform =
-        Transform::from_xyz(1.0, 1.0, 4.0).looking_at(Vec3::new(1.0, 1.0, 0.0), -Vec3::Y);
+        Transform::from_xyz(0.5, 0.5, 4.0).looking_at(Vec3::ZERO, -Vec3::Y);
 
     // Camera in 3D space.
     commands.spawn((
@@ -66,54 +74,50 @@ pub fn input_handler(
     mut mouse_pos: Query<&mut MousePos>,
     time: Res<Time>,
 ) {
-    let window = windows.single_mut();
-    if mouse_input.just_pressed(MouseButton::Left) {
+    let mut window = windows.single_mut();
+    
+    if mouse_input.just_released(MouseButton::Left) {
+        window.cursor.visible = false;
         if let Some(position) = window.cursor_position() {
-            mouse_pos.single_mut().as_mut().prev_pos = position;
+            mouse_pos.single_mut().prev_pos = position;
         }
     }
+    if keyboard_input.just_released(KeyCode::Escape) {
+        window.cursor.visible = true;
+    }
 
-    if mouse_input.pressed(MouseButton::Left) && !keyboard_input.pressed(KeyCode::ShiftLeft) {
+    if !window.cursor.visible {
         if let Some(position) = window.cursor_position() {
+            let mut delta = mouse_pos.single_mut().calculate_delta(position);
+            
             for mut camera in &mut query {
-                let delta = mouse_pos.single_mut().calculate_delta(position);
+                delta *= time.delta_seconds();
 
-                if delta.x.abs() > 0.1 || delta.y.abs() > 0.1 {
-                    let dir_x = camera.local_x();
-                    let dir_y = camera.local_y();
-
-                    let mut rotation = delta.x * dir_x + delta.y * dir_y;
-                    rotation = Vec3::normalize(rotation);
-                    rotation *= time.delta_seconds() * 2.0;
-
-                    camera.rotate_around(
-                        Vec3::ZERO,
-                        Quat::from_euler(EulerRot::YXZ, 0.0, rotation.y, 0.0),
-                    );
-                    camera.rotate_around(
-                        Vec3::ZERO,
-                        Quat::from_euler(EulerRot::YXZ, rotation.x, 0.0, 0.0),
-                    );
-                }
-            }
-        }
-    } else if mouse_input.pressed(MouseButton::Left) && keyboard_input.pressed(KeyCode::ShiftLeft) {
-        if let Some(position) = window.cursor_position() {
-            for mut camera in &mut query {
-                let delta = mouse_pos.single_mut().calculate_delta(position);
-
-                if delta.x.abs() > 0.1 || delta.y.abs() > 0.1 {
-                    let dir_x = camera.local_x();
-                    let dir_y = camera.local_y();
-
-                    camera.translation += (dir_x * delta.x + dir_y * delta.y) * 0.0001;
-                }
+                camera.rotate_local_y(delta.x);
+                camera.rotate_local_x(delta.y);
             }
         }
     }
+    let move_speed = if keyboard_input.pressed(KeyCode::ShiftLeft) {
+        10.0
+    } else {
+        1.0
+    };
 
-    if mouse_input.just_pressed(MouseButton::Middle) {
-        println!("Middle mouse button pressed");
+    for mut camera in &mut query {
+        let left = camera.left() * keyboard_input.pressed(KeyCode::A) as i8 as f32;
+        let right = camera.right() * keyboard_input.pressed(KeyCode::D) as i8 as f32;
+        let forward = camera.forward() * keyboard_input.pressed(KeyCode::W) as i8 as f32;
+        let back = camera.back() * keyboard_input.pressed(KeyCode::S) as i8 as f32;
+        let up = camera.up() * keyboard_input.pressed(KeyCode::E) as i8 as f32;
+        let down = camera.down() * keyboard_input.pressed(KeyCode::Q) as i8 as f32;
+
+        camera.translation += (left + right + up + down + forward + back) * time.delta_seconds() * move_speed;
+
+        if keyboard_input.just_released(KeyCode::R) {
+            camera.translation = Vec3::new(0.5, 0.5, 4.0);
+            camera.look_at(Vec3::ZERO, -Vec3::Y);
+        }
     }
 }
 

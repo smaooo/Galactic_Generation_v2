@@ -19,6 +19,7 @@ impl Default for MousePos {
 impl MousePos {
     pub fn calculate_delta(&mut self, current_pos: Vec2) -> Vec2 {
         let delta = self.prev_pos - current_pos;
+        self.prev_pos = current_pos;
         delta
     }
 }
